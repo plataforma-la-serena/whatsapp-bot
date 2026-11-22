@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
 import type { FastifyBaseLogger } from "fastify";
 import type { AppConfig } from "../config";
 import { isWhatsAppMock } from "../config";
@@ -68,9 +67,7 @@ export class WhatsAppService {
       return;
     }
 
-    const media = source.link
-      ? { link: source.link }
-      : { id: await this.uploadImage(source.path) };
+    const media = await this.resolveMedia(source);
 
     await this.send(
       to,
@@ -84,16 +81,44 @@ export class WhatsAppService {
     );
   }
 
-  private async uploadImage(filePath?: string): Promise<string> {
-    if (!filePath) {
+  private async resolveMedia(
+    source: ImageSource,
+  ): Promise<{ link: string } | { id: string }> {
+    if (source.link && !source.link.startsWith("/")) {
+      return { link: source.link };
+    }
+
+    if (source.link) {
+      const response = await fetch(`${this.config.apiCentralUrl}${source.link}`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo descargar la imagen del departamento");
+      }
+
+      const mimeType = response.headers.get("content-type") ?? "image/jpeg";
+      const data = new Uint8Array(await response.arrayBuffer());
+      return { id: await this.uploadImage(data, mimeType) };
+    }
+
+    if (!source.path) {
       throw new Error("La imagen no tiene ruta ni enlace");
     }
 
-    const data = await readFile(filePath);
+    const data = new Uint8Array(await readFile(source.path));
+    return { id: await this.uploadImage(data, "image/jpeg") };
+  }
+
+  private async uploadImage(
+    data: Uint8Array<ArrayBuffer>,
+    mimeType: string,
+  ): Promise<string> {
+    const extension = mimeType === "image/png" ? "png" : "jpg";
     const form = new FormData();
     form.append("messaging_product", "whatsapp");
-    form.append("type", "image/jpeg");
-    form.append("file", new Blob([data], { type: "image/jpeg" }), basename(filePath));
+    form.append("type", mimeType);
+    form.append("file", new Blob([data], { type: mimeType }), `foto.${extension}`);
 
     const response = await fetch(this.messagesUrl("media"), {
       method: "POST",
