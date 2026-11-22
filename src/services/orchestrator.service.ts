@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from "fastify";
-import { imagesForApartment } from "../lib/apartment-images";
+import { imagesForApartment, normalize } from "../lib/apartment-images";
 import type { ApartmentContext, StoredMessage } from "../types";
 import type { ApiCentralService } from "./api-central.service";
 import type { IaService } from "./ia.service";
@@ -9,6 +9,7 @@ const FALLBACK_REPLY =
   "Estamos teniendo un problema técnico. Por favor, intentá nuevamente en unos minutos.";
 
 const MAX_IMAGES = 4;
+const PHOTO_REQUEST = /\b(foto|fotos|imagen|imagenes|mostrame|mostrar|mostra|ver)\b/;
 
 function toHistory(
   messages: StoredMessage[],
@@ -58,7 +59,13 @@ export class OrchestratorService {
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
       await this.whatsapp.sendText(phone, result.reply);
-      await this.sendApartmentImages(phone, result.apartmentIds ?? [], apartments);
+      await this.sendApartmentImages(
+        phone,
+        result.apartmentIds ?? [],
+        apartments,
+        text,
+        messages,
+      );
 
       if (result.handoff) {
         await this.api.setBotActive(phone, false);
@@ -74,8 +81,14 @@ export class OrchestratorService {
     phone: string,
     apartmentIds: string[],
     apartments: ApartmentContext[],
+    userText: string,
+    history: StoredMessage[],
   ): Promise<void> {
     let sent = 0;
+    const askedForPhotos = PHOTO_REQUEST.test(normalize(userText));
+    const alreadyDiscussed = normalize(
+      history.map((message) => message.content).join("\n"),
+    );
 
     for (const id of apartmentIds) {
       if (sent >= MAX_IMAGES) {
@@ -88,6 +101,12 @@ export class OrchestratorService {
       }
 
       const apartment = apartments[index];
+      const wasShown = alreadyDiscussed.includes(normalize(apartment.title));
+
+      if (wasShown && !askedForPhotos) {
+        continue;
+      }
+
       const images = imagesForApartment(apartment.images, index);
 
       for (const [position, image] of images.entries()) {

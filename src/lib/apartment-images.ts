@@ -13,6 +13,13 @@ export interface ApartmentImage {
   reference: boolean;
 }
 
+export function normalize(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 export function imagesForApartment(
   images: string[],
   index: number,
