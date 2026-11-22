@@ -1,11 +1,14 @@
 import type { FastifyBaseLogger } from "fastify";
-import type { StoredMessage } from "../types";
+import { imagesForApartment } from "../lib/apartment-images";
+import type { ApartmentContext, StoredMessage } from "../types";
 import type { ApiCentralService } from "./api-central.service";
 import type { IaService } from "./ia.service";
 import type { WhatsAppService } from "./whatsapp.service";
 
 const FALLBACK_REPLY =
   "Estamos teniendo un problema técnico. Por favor, intentá nuevamente en unos minutos.";
+
+const MAX_IMAGES = 4;
 
 function toHistory(
   messages: StoredMessage[],
@@ -55,6 +58,7 @@ export class OrchestratorService {
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
       await this.whatsapp.sendText(phone, result.reply);
+      await this.sendApartmentImages(phone, result.apartmentIds ?? [], apartments);
 
       if (result.handoff) {
         await this.api.setBotActive(phone, false);
@@ -63,6 +67,49 @@ export class OrchestratorService {
     } catch (error) {
       this.logger.error({ err: error, phone }, "error procesando el mensaje");
       await this.whatsapp.sendText(phone, FALLBACK_REPLY).catch(() => undefined);
+    }
+  }
+
+  private async sendApartmentImages(
+    phone: string,
+    apartmentIds: string[],
+    apartments: ApartmentContext[],
+  ): Promise<void> {
+    let sent = 0;
+
+    for (const id of apartmentIds) {
+      if (sent >= MAX_IMAGES) {
+        return;
+      }
+
+      const index = apartments.findIndex((apartment) => apartment.id === id);
+      if (index < 0) {
+        continue;
+      }
+
+      const apartment = apartments[index];
+      const images = imagesForApartment(apartment.images, index);
+
+      for (const [position, image] of images.entries()) {
+        if (sent >= MAX_IMAGES) {
+          return;
+        }
+
+        try {
+          const caption =
+            position === 0
+              ? `*${apartment.title}*${image.reference ? "\nImagen de referencia" : ""}`
+              : undefined;
+          await this.whatsapp.sendImage(phone, image.source, caption);
+          sent += 1;
+        } catch (error) {
+          this.logger.error(
+            { err: error, phone, apartment: apartment.title },
+            "error enviando imagen del departamento",
+          );
+          break;
+        }
+      }
     }
   }
 }

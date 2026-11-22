@@ -47,6 +47,7 @@ export interface ApartmentContext {
   pricePerNight: number;
   capacity: number;
   features: string[];
+  images: string[];
 }
 
 export interface IaRequest {
@@ -61,4 +62,5 @@ export interface IaResponse {
   intent: "greeting" | "question" | "reservation" | "off_topic";
   handoff: boolean;
   model: string;
+  apartmentIds?: string[];
 }
