@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { timingSafeEqual } from "node:crypto";
 import type { AppConfig } from "../config";
 import type { MessageDeduplicator } from "../lib/dedupe";
 import { verifySignature } from "../lib/signature";
@@ -27,6 +28,15 @@ function isTextMessage(message: WhatsAppMessage): boolean {
   return message.type === "text" && Boolean(message.text?.body);
 }
 
+function safeEqual(provided: string, expected: string): boolean {
+  const left = Buffer.from(provided);
+  const right = Buffer.from(expected);
+  if (left.length !== right.length) {
+    return false;
+  }
+  return timingSafeEqual(left, right);
+}
+
 export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
   app,
   deps,
@@ -39,7 +49,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
     if (
       mode === "subscribe" &&
       token &&
-      token === deps.config.whatsappVerifyToken
+      safeEqual(token, deps.config.whatsappVerifyToken)
     ) {
       return reply.code(200).send(challenge ?? "");
     }
