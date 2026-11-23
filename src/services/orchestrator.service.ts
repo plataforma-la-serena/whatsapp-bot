@@ -110,7 +110,6 @@ export class OrchestratorService {
       const images = imagesForApartment(
         apartment.images,
         apartment.coverIndex,
-        index,
       );
 
       for (const [position, image] of images.entries()) {

@@ -1,12 +1,4 @@
-import { join } from "node:path";
 import type { ImageSource } from "../services/whatsapp.service";
-
-const REFERENCE_FILES = [
-  "interior-living.jpg",
-  "interior-bedroom.jpg",
-  "interior-kitchen.jpg",
-  "interior-terrace.jpg",
-];
 
 export interface ApartmentImage {
   source: ImageSource;
@@ -23,31 +15,16 @@ export function normalize(text: string): string {
 export function imagesForApartment(
   images: string[],
   coverIndex: number,
-  index: number,
 ): ApartmentImage[] {
-  if (images.length > 0) {
-    const cover = images[coverIndex] ?? images[0];
-    const rest = images.filter((image) => image !== cover);
-
-    return [cover, ...rest].slice(0, 2).map((link) => ({
-      source: { link },
-      reference: false,
-    }));
+  if (images.length === 0) {
+    return [];
   }
 
-  const start = (index * 2) % REFERENCE_FILES.length;
+  const cover = images[coverIndex] ?? images[0];
+  const rest = images.filter((image) => image !== cover);
 
-  return [0, 1].map((offset) => ({
-    source: {
-      path: join(
-        __dirname,
-        "..",
-        "..",
-        "assets",
-        "apartments",
-        REFERENCE_FILES[(start + offset) % REFERENCE_FILES.length],
-      ),
-    },
-    reference: true,
+  return [cover, ...rest].slice(0, 2).map((link) => ({
+    source: { link },
+    reference: false,
   }));
 }
