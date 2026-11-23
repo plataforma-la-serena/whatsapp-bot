@@ -89,6 +89,10 @@ export class WhatsAppService {
     }
 
     if (source.link) {
+      if (!/^\/media\/[a-z0-9-]+$/i.test(source.link)) {
+        throw new Error("Ruta de imagen inválida");
+      }
+
       const response = await fetch(`${this.config.apiCentralUrl}${source.link}`, {
         signal: AbortSignal.timeout(15_000),
       });
