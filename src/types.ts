@@ -48,6 +48,7 @@ export interface ApartmentContext {
   capacity: number;
   features: string[];
   images: string[];
+  coverIndex: number;
 }
 
 export interface IaRequest {

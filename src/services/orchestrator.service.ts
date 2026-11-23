@@ -107,7 +107,11 @@ export class OrchestratorService {
         continue;
       }
 
-      const images = imagesForApartment(apartment.images, index);
+      const images = imagesForApartment(
+        apartment.images,
+        apartment.coverIndex,
+        index,
+      );
 
       for (const [position, image] of images.entries()) {
         if (sent >= MAX_IMAGES) {
