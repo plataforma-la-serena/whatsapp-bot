@@ -58,6 +58,12 @@ export class OrchestratorService {
       });
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
+
+      if (result.handoff) {
+        await this.api.setBotActive(phone, false);
+        this.logger.info({ phone }, "handoff: bot pausado para intervención humana");
+      }
+
       await this.whatsapp.sendText(phone, result.reply);
       await this.sendApartmentImages(
         phone,
@@ -66,11 +72,6 @@ export class OrchestratorService {
         text,
         messages,
       );
-
-      if (result.handoff) {
-        await this.api.setBotActive(phone, false);
-        this.logger.info({ phone }, "handoff: bot pausado para intervención humana");
-      }
     } catch (error) {
       this.logger.error({ err: error, phone }, "error procesando el mensaje");
       await this.whatsapp.sendText(phone, FALLBACK_REPLY).catch(() => undefined);
