@@ -34,6 +34,16 @@ export class ApiCentralService {
     });
   }
 
+  setLead(
+    phone: string,
+    data: { name?: string; wantsReservation?: boolean },
+  ): Promise<unknown> {
+    return this.request(`${this.sessionPath(phone)}/lead`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
   private sessionPath(phone: string): string {
     return `/internal/chat-sessions/${encodeURIComponent(phone)}`;
   }

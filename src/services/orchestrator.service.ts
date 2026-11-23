@@ -59,6 +59,13 @@ export class OrchestratorService {
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
 
+      if (result.customerName || result.wantsReservation) {
+        await this.api.setLead(phone, {
+          name: result.customerName ?? undefined,
+          wantsReservation: result.wantsReservation || undefined,
+        });
+      }
+
       if (result.handoff) {
         await this.api.setBotActive(phone, false);
         this.logger.info({ phone }, "handoff: bot pausado para intervención humana");

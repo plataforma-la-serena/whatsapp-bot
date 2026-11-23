@@ -64,4 +64,6 @@ export interface IaResponse {
   handoff: boolean;
   model: string;
   apartmentIds?: string[];
+  customerName?: string | null;
+  wantsReservation?: boolean;
 }
