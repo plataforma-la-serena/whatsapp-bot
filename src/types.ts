@@ -25,6 +25,9 @@ export interface ChatSession {
   id: string;
   phoneNumber: string;
   botActive: boolean;
+  customerName?: string | null;
+  wantsReservation?: boolean;
+  wantsHuman?: boolean;
   lastInteraction: string;
 }
 
@@ -66,4 +69,5 @@ export interface IaResponse {
   apartmentIds?: string[];
   customerName?: string | null;
   wantsReservation?: boolean;
+  wantsHuman?: boolean;
 }

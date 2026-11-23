@@ -4,6 +4,7 @@ import { timingSafeEqual } from "node:crypto";
 import { isWhatsAppMock, type AppConfig } from "./config";
 import { MessageDeduplicator } from "./lib/dedupe";
 import { webhookRoutes } from "./routes/webhook.route";
+import { AlertService } from "./services/alert.service";
 import { ApiCentralService } from "./services/api-central.service";
 import { IaService } from "./services/ia.service";
 import { OrchestratorService } from "./services/orchestrator.service";
@@ -39,7 +40,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const api = new ApiCentralService(config);
   const ia = new IaService(config);
   const whatsapp = new WhatsAppService(config, app.log);
-  const orchestrator = new OrchestratorService(api, ia, whatsapp, app.log);
+  const alert = new AlertService(config, api, whatsapp, app.log);
+  const orchestrator = new OrchestratorService(api, ia, whatsapp, alert, app.log);
   const dedupe = new MessageDeduplicator();
 
   app.get("/health", async () => ({

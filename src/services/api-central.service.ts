@@ -36,12 +36,20 @@ export class ApiCentralService {
 
   setLead(
     phone: string,
-    data: { name?: string; wantsReservation?: boolean },
+    data: {
+      name?: string;
+      wantsReservation?: boolean;
+      wantsHuman?: boolean;
+    },
   ): Promise<unknown> {
     return this.request(`${this.sessionPath(phone)}/lead`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  }
+
+  window(phone: string): Promise<{ open: boolean }> {
+    return this.request(`${this.sessionPath(phone)}/window`);
   }
 
   private sessionPath(phone: string): string {

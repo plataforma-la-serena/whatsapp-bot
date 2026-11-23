@@ -57,6 +57,48 @@ export class WhatsAppService {
     );
   }
 
+  async sendTemplate(
+    to: string,
+    name: string,
+    language: string,
+    parameters: string[],
+  ): Promise<void> {
+    if (this.mock) {
+      this.logger.info(
+        { to, template: name, parameters },
+        "whatsapp mock: plantilla no enviada",
+      );
+      return;
+    }
+
+    await this.send(
+      to,
+      (recipient) => ({
+        messaging_product: "whatsapp",
+        to: recipient,
+        type: "template",
+        template: {
+          name,
+          language: { code: language },
+          ...(parameters.length > 0
+            ? {
+                components: [
+                  {
+                    type: "body",
+                    parameters: parameters.map((text) => ({
+                      type: "text",
+                      text,
+                    })),
+                  },
+                ],
+              }
+            : {}),
+        },
+      }),
+      "plantilla",
+    );
+  }
+
   async sendImage(
     to: string,
     source: ImageSource,

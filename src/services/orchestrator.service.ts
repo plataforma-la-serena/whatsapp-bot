@@ -1,6 +1,7 @@
 import type { FastifyBaseLogger } from "fastify";
 import { imagesForApartment, normalize } from "../lib/apartment-images";
 import type { ApartmentContext, StoredMessage } from "../types";
+import type { AlertService } from "./alert.service";
 import type { ApiCentralService } from "./api-central.service";
 import type { IaService } from "./ia.service";
 import type { WhatsAppService } from "./whatsapp.service";
@@ -28,6 +29,7 @@ export class OrchestratorService {
     private readonly api: ApiCentralService,
     private readonly ia: IaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly alert: AlertService,
     private readonly logger: FastifyBaseLogger,
   ) {}
 
@@ -40,13 +42,14 @@ export class OrchestratorService {
       return;
     }
 
-    await this.respond(phone, text, messages);
+    await this.respond(phone, text, messages, session);
   }
 
   private async respond(
     phone: string,
     text: string,
     messages: StoredMessage[],
+    session: Awaited<ReturnType<ApiCentralService["session"]>>["session"],
   ): Promise<void> {
     try {
       const apartments = await this.api.context();
@@ -59,19 +62,40 @@ export class OrchestratorService {
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
 
-      if (result.customerName || result.wantsReservation) {
+      const name = result.customerName ?? session.customerName ?? null;
+      const humanRequested = Boolean(result.wantsHuman);
+      const reservationInterest = Boolean(result.wantsReservation);
+      const humanIsNew = humanRequested && !session.wantsHuman;
+      const reservationIsNew =
+        reservationInterest && !session.wantsReservation;
+
+      if (name || reservationInterest || humanRequested) {
         await this.api.setLead(phone, {
-          name: result.customerName ?? undefined,
-          wantsReservation: result.wantsReservation || undefined,
+          name: name ?? undefined,
+          wantsReservation: reservationInterest || undefined,
+          wantsHuman: humanRequested || undefined,
         });
       }
 
-      if (result.handoff) {
+      if (humanRequested) {
+        await this.api.setBotActive(phone, false);
+        this.logger.info(
+          { phone },
+          "pedido de humano: bot pausado para intervención humana",
+        );
+      } else if (result.handoff) {
         await this.api.setBotActive(phone, false);
         this.logger.info({ phone }, "handoff: bot pausado para intervención humana");
       }
 
       await this.whatsapp.sendText(phone, result.reply);
+
+      if (humanIsNew) {
+        await this.alert.notify({ phone, name, kind: "human" });
+      }
+      if (reservationIsNew) {
+        await this.alert.notify({ phone, name, kind: "reservation" });
+      }
       await this.sendApartmentImages(
         phone,
         result.apartmentIds ?? [],

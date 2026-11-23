@@ -12,6 +12,10 @@ export interface AppConfig {
   whatsappVerifyToken: string;
   whatsappApiVersion: string;
   catalogUrl: string;
+  alertPhone: string;
+  alertTemplateName: string;
+  alertTemplateLang: string;
+  alertDryRun: boolean;
 }
 
 export function loadConfig(): AppConfig {
@@ -32,6 +36,10 @@ export function loadConfig(): AppConfig {
     whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
     whatsappApiVersion: process.env.WHATSAPP_API_VERSION ?? "v21.0",
     catalogUrl: process.env.CATALOG_URL ?? "http://localhost:3000",
+    alertPhone: process.env.WHATSAPP_ALERT_PHONE ?? "5492613368554",
+    alertTemplateName: process.env.WHATSAPP_ALERT_TEMPLATE ?? "",
+    alertTemplateLang: process.env.WHATSAPP_ALERT_TEMPLATE_LANG ?? "es",
+    alertDryRun: process.env.WHATSAPP_ALERT_DRY_RUN === "true",
   };
 }
 
