@@ -15,16 +15,19 @@ Variables:
 
 ```env
 WHATSAPP_ALERT_PHONE=5492613368554
-WHATSAPP_ALERT_TEMPLATE=aviso_equipo
+WHATSAPP_ALERT_TEMPLATE=aviso_equipo_5
 WHATSAPP_ALERT_TEMPLATE_LANG=es
 WHATSAPP_ALERT_DRY_RUN=false
 ```
 
-Plantilla sugerida en Meta (categoría Utility, idioma español):
+Plantilla creada en Meta (categoría Utility, idioma español, pendiente de
+aprobación), con dos variables separadas por texto y valores de ejemplo:
 
 ```text
-Aviso: el número {{1}} {{2}}.
+Notificación de servicio: el número {{1}}, que {{2}}. Se requiere una respuesta del equipo.
 ```
+
+Ejemplo: `5491111111111` / `quiere hablar con una persona real`.
 
 El bot envía `{{1}}` = teléfono del cliente y `{{2}}` = motivo
 (`quiere hablar con una persona real` o `está interesado en reservar`).
