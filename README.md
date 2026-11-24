@@ -36,21 +36,26 @@ Para probar sin enviar mensajes reales, usar `WHATSAPP_ALERT_DRY_RUN=true`.
 
 ## Audios
 
-Las notas de voz se descargan de WhatsApp, se convierten con `ffmpeg` y se
-transcriben con `whisper.cpp`. La transcripción se guarda como mensaje del
-cliente (con el prefijo 🎤) y se procesa como si hubiera escrito ese texto.
+Las notas de voz se descargan de WhatsApp y se transcriben con una API externa
+compatible con OpenAI (`/audio/transcriptions`). La transcripción se guarda como
+mensaje del cliente (con el prefijo 🎤) y se procesa como si hubiera escrito ese
+texto.
 
-Instalación:
+Proveedor recomendado: **Groq** con `whisper-large-v3-turbo` (rápido, económico y
+con buen español). También funciona con OpenAI (`whisper-1` o
+`gpt-4o-mini-transcribe`) o cualquier API compatible.
 
-```bash
-bash scripts/setup-whisper.sh
+```env
+TRANSCRIPTION_MODE=external
+TRANSCRIPTION_API_URL=https://api.groq.com/openai/v1/audio/transcriptions
+TRANSCRIPTION_API_KEY=tu-api-key
+TRANSCRIPTION_MODEL=whisper-large-v3-turbo
+TRANSCRIPTION_LANGUAGE=es
 ```
 
-Por defecto usa `~/.local/share/whisper.cpp` con el modelo `base`
-(multilingüe, ~142 MB). Se puede cambiar con `WHISPER_BIN`, `WHISPER_MODEL`,
-`WHISPER_LANGUAGE` y `WHISPER_THREADS`. Para mejor precisión en español se
-puede descargar `small` (`bash models/download-ggml-model.sh small` en el
-directorio de whisper.cpp) y apuntar `WHISPER_MODEL` a ese archivo.
+Si `TRANSCRIPTION_API_KEY` está vacía o la API falla, se usa `whisper.cpp`
+local como respaldo (ver `scripts/setup-whisper.sh`). Para forzar solo el modo
+local: `TRANSCRIPTION_MODE=local`.
 
-Si la transcripción falla, el bot responde "No pude escuchar el audio. ¿Me lo
-podés escribir?" y deja el intento registrado en el panel.
+Si la transcripción falla por completo, el bot responde "No pude escuchar el
+audio. ¿Me lo podés escribir?" y deja el intento registrado en el panel.

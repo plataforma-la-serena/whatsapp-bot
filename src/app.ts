@@ -55,8 +55,11 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   app.log.info(
     {
       enabled: transcription.enabled,
-      bin: config.whisperBin,
-      model: config.whisperModel,
+      provider: transcription.provider,
+      externalModel: config.transcriptionModel,
+      hasApiKey: config.transcriptionApiKey.length > 0,
+      whisperBin: config.whisperBin,
+      whisperModel: config.whisperModel,
     },
     transcription.enabled
       ? "transcripción de audios activa"

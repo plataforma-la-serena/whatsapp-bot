@@ -19,6 +19,11 @@ export interface AppConfig {
   alertTemplateLang: string;
   alertDryRun: boolean;
   transcriptionEnabled: boolean;
+  transcriptionMode: "external" | "local";
+  transcriptionApiUrl: string;
+  transcriptionApiKey: string;
+  transcriptionModel: string;
+  transcriptionLanguage: string;
   whisperBin: string;
   whisperModel: string;
   whisperLanguage: string;
@@ -50,6 +55,22 @@ export function loadConfig(): AppConfig {
     alertTemplateLang: process.env.WHATSAPP_ALERT_TEMPLATE_LANG ?? "es",
     alertDryRun: process.env.WHATSAPP_ALERT_DRY_RUN === "true",
     transcriptionEnabled: process.env.WHISPER_ENABLED !== "false",
+    transcriptionMode:
+      process.env.TRANSCRIPTION_MODE === "local" ? "local" : "external",
+    transcriptionApiUrl:
+      process.env.TRANSCRIPTION_API_URL ??
+      "https://api.groq.com/openai/v1/audio/transcriptions",
+    transcriptionApiKey:
+      process.env.TRANSCRIPTION_API_KEY ??
+      process.env.GROQ_API_KEY ??
+      process.env.OPENAI_API_KEY ??
+      "",
+    transcriptionModel:
+      process.env.TRANSCRIPTION_MODEL ?? "whisper-large-v3-turbo",
+    transcriptionLanguage:
+      process.env.TRANSCRIPTION_LANGUAGE ??
+      process.env.WHISPER_LANGUAGE ??
+      "es",
     whisperBin:
       process.env.WHISPER_BIN ??
       `${homedir()}/.local/share/whisper.cpp/build/bin/whisper-cli`,

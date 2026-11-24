@@ -11,11 +11,11 @@ import type { WhatsAppService } from "./whatsapp.service";
 const execFileAsync = promisify(execFile);
 
 /**
- * Transcribe notas de voz de WhatsApp con whisper.cpp.
+ * Transcribe notas de voz de WhatsApp.
  *
- * El audio se descarga de Meta, se convierte a WAV mono 16 kHz con ffmpeg y se
- * pasa al binario de whisper.cpp. Las transcripciones se procesan de a una para
- * no saturar la CPU.
+ * Modo preferido: API externa compatible con OpenAI
+ * (`/audio/transcriptions`), por ejemplo Groq o OpenAI.
+ * Respaldo: whisper.cpp local, si está instalado.
  */
 export class TranscriptionService {
   private queue: Promise<unknown> = Promise.resolve();
@@ -29,9 +29,18 @@ export class TranscriptionService {
   get enabled(): boolean {
     return (
       this.config.transcriptionEnabled &&
-      existsSync(this.config.whisperBin) &&
-      existsSync(this.config.whisperModel)
+      (this.hasExternal() || this.hasLocal())
     );
+  }
+
+  get provider(): "external" | "local" | "none" {
+    if (this.hasExternal()) {
+      return "external";
+    }
+    if (this.hasLocal()) {
+      return "local";
+    }
+    return "none";
   }
 
   transcribe(mediaId: string): Promise<string | null> {
@@ -45,22 +54,26 @@ export class TranscriptionService {
 
   private async run(mediaId: string): Promise<string | null> {
     try {
-      const { buffer } = await this.whatsapp.downloadMedia(mediaId);
-      return await this.transcribeBuffer(buffer);
+      const { buffer, mimeType } = await this.whatsapp.downloadMedia(mediaId);
+      return await this.transcribeBuffer(buffer, mimeType);
     } catch (error) {
       this.logger.error({ err: error, mediaId }, "error transcribiendo audio");
       return null;
     }
   }
 
-  async transcribeBuffer(buffer: Buffer): Promise<string | null> {
+  async transcribeBuffer(
+    buffer: Buffer,
+    mimeType = "audio/ogg",
+  ): Promise<string | null> {
     if (!this.enabled) {
       this.logger.warn(
         {
-          bin: this.config.whisperBin,
-          model: this.config.whisperModel,
+          mode: this.config.transcriptionMode,
+          external: this.hasExternal(),
+          local: this.hasLocal(),
         },
-        "transcripción deshabilitada: falta el binario o el modelo",
+        "transcripción deshabilitada: falta la API key o el whisper local",
       );
       return null;
     }
@@ -70,6 +83,92 @@ export class TranscriptionService {
         { bytes: buffer.byteLength },
         "audio demasiado grande para transcribir",
       );
+      return null;
+    }
+
+    if (this.hasExternal()) {
+      try {
+        const text = await this.transcribeExternal(buffer, mimeType);
+        if (text) {
+          return text;
+        }
+      } catch (error) {
+        this.logger.warn(
+          { err: error },
+          "falló la transcripción externa; se intenta con whisper local",
+        );
+      }
+
+      if (!this.hasLocal()) {
+        return null;
+      }
+    }
+
+    return this.transcribeLocal(buffer);
+  }
+
+  private async transcribeExternal(
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<string | null> {
+    const form = new FormData();
+    form.append(
+      "file",
+      new Blob([new Uint8Array(buffer)], { type: mimeType }),
+      `audio.${extensionFor(mimeType)}`,
+    );
+    form.append("model", this.config.transcriptionModel);
+    form.append("language", this.config.transcriptionLanguage);
+    form.append("response_format", "json");
+
+    const response = await fetch(this.config.transcriptionApiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.transcriptionApiKey}`,
+      },
+      body: form,
+      signal: AbortSignal.timeout(60_000),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(
+        `STT respondió ${response.status}: ${detail.slice(0, 200)}`,
+      );
+    }
+
+    const raw = await response.text();
+    let text = raw;
+
+    try {
+      const payload = JSON.parse(raw) as { text?: string };
+      if (typeof payload.text === "string") {
+        text = payload.text;
+      }
+    } catch {
+      // Algunos proveedores devuelven texto plano.
+    }
+
+    const cleaned = cleanTranscript(text);
+
+    if (!cleaned) {
+      this.logger.info("audio sin voz detectable (externo)");
+      return null;
+    }
+
+    this.logger.info(
+      {
+        provider: "external",
+        model: this.config.transcriptionModel,
+        characters: cleaned.length,
+      },
+      "audio transcrito",
+    );
+    return cleaned;
+  }
+
+  private async transcribeLocal(buffer: Buffer): Promise<string | null> {
+    if (!this.hasLocal()) {
       return null;
     }
 
@@ -117,14 +216,17 @@ export class TranscriptionService {
       const text = cleanTranscript(stdout);
 
       if (!text) {
-        this.logger.info("audio sin voz detectable");
+        this.logger.info("audio sin voz detectable (local)");
         return null;
       }
 
-      this.logger.info({ characters: text.length }, "audio transcrito");
+      this.logger.info(
+        { provider: "local", characters: text.length },
+        "audio transcrito",
+      );
       return text;
     } catch (error) {
-      this.logger.error({ err: error }, "error transcribiendo audio");
+      this.logger.error({ err: error }, "error transcribiendo audio local");
       return null;
     } finally {
       if (directory) {
@@ -134,6 +236,32 @@ export class TranscriptionService {
       }
     }
   }
+
+  private hasExternal(): boolean {
+    return (
+      this.config.transcriptionMode === "external" &&
+      this.config.transcriptionApiKey.length > 0
+    );
+  }
+
+  private hasLocal(): boolean {
+    return (
+      existsSync(this.config.whisperBin) &&
+      existsSync(this.config.whisperModel)
+    );
+  }
+}
+
+function extensionFor(mimeType: string): string {
+  const mime = mimeType.toLowerCase();
+
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  if (mime.includes("mp4") || mime.includes("m4a")) return "m4a";
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("amr")) return "amr";
+  return "ogg";
 }
 
 function cleanTranscript(raw: string): string {
