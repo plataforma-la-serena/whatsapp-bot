@@ -64,6 +64,7 @@ export interface IaRequest {
   phone: string;
   history: Array<{ role: "user" | "assistant"; content: string }>;
   apartments: ApartmentContext[];
+  source?: "text" | "audio";
 }
 
 export interface IaResponse {

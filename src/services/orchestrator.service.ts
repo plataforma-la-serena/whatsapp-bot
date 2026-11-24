@@ -39,6 +39,7 @@ export class OrchestratorService {
     phone: string,
     text: string,
     storedText = text,
+    source: "text" | "audio" = "text",
   ): Promise<void> {
     const { session, messages } = await this.api.session(phone);
     await this.api.appendMessage(phone, "USER", storedText);
@@ -48,7 +49,7 @@ export class OrchestratorService {
       return;
     }
 
-    await this.respond(phone, text, messages, session);
+    await this.respond(phone, text, messages, session, source);
   }
 
   async handleAudio(phone: string, mediaId: string): Promise<void> {
@@ -76,7 +77,7 @@ export class OrchestratorService {
       return;
     }
 
-    await this.handleMessage(phone, transcript, `🎤 ${transcript}`);
+    await this.handleMessage(phone, transcript, `🎤 ${transcript}`, "audio");
   }
 
   private async respond(
@@ -84,6 +85,7 @@ export class OrchestratorService {
     text: string,
     messages: StoredMessage[],
     session: Awaited<ReturnType<ApiCentralService["session"]>>["session"],
+    source: "text" | "audio",
   ): Promise<void> {
     try {
       const apartments = await this.api.context();
@@ -92,6 +94,7 @@ export class OrchestratorService {
         phone,
         history: toHistory(messages),
         apartments,
+        source,
       });
 
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);

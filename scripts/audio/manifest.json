@@ -1,0 +1,527 @@
+{
+  "cases": [
+    {
+      "id": "greeting",
+      "turns": [
+        {
+          "text": "Hola, buenas tardes",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludes": [
+          "catálogo",
+          "alquileres4esquinas.com"
+        ],
+        "maxCatalogMentions": 1,
+        "maxLinks": 1
+      }
+    },
+    {
+      "id": "catalog",
+      "turns": [
+        {
+          "text": "¿Qué departamentos tienen disponibles?",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludes": [
+          "Carlo Magno"
+        ],
+        "replyExcludes": [
+          "Departamento 01",
+          "ngrok"
+        ],
+        "maxCatalogMentions": 1,
+        "maxLinks": 1
+      }
+    },
+    {
+      "id": "price",
+      "turns": [
+        {
+          "text": "¿Cuánto sale Carlo Magno Piso 1?",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAll": [
+          "66.000",
+          "CLP"
+        ],
+        "maxCatalogMentions": 1
+      }
+    },
+    {
+      "id": "capacity",
+      "turns": [
+        {
+          "text": "¿Cuántas personas entran en Carlo Magno?",
+          "voice": "es-CL-LorenzoNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "5",
+          "cinco"
+        ]
+      }
+    },
+    {
+      "id": "features",
+      "turns": [
+        {
+          "text": "¿Tiene cocina y balcón?",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAll": [
+          "cocina",
+          "balcón"
+        ]
+      }
+    },
+    {
+      "id": "parking",
+      "turns": [
+        {
+          "text": "¿Tiene estacionamiento?",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludes": [
+          "estacionamiento"
+        ]
+      }
+    },
+    {
+      "id": "pets",
+      "turns": [
+        {
+          "text": "¿Aceptan mascotas?",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "no tengo",
+          "equipo",
+          "WhatsApp"
+        ]
+      }
+    },
+    {
+      "id": "payment",
+      "turns": [
+        {
+          "text": "¿Cómo se paga, tarjeta o transferencia?",
+          "voice": "es-CL-LorenzoNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "medios de pago",
+          "equipo",
+          "WhatsApp"
+        ],
+        "wantsReservation": false
+      }
+    },
+    {
+      "id": "reservation",
+      "turns": [
+        {
+          "text": "Quiero reservar para dos personas en enero",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "wantsReservation": true,
+        "handoff": false,
+        "replyIncludesAny": [
+          "nombre"
+        ],
+        "maxCatalogMentions": 1
+      }
+    },
+    {
+      "id": "name",
+      "turns": [
+        {
+          "text": "Quiero reservar para dos personas en enero",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        },
+        {
+          "text": "Me llamo Bruno Levatino",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        },
+        {
+          "text": "No, es Bruno Levatino",
+          "textOnly": true
+        }
+      ],
+      "checks": [
+        {
+          "wantsReservation": true,
+          "handoff": false,
+          "replyIncludesAny": [
+            "nombre"
+          ]
+        },
+        {
+          "handoff": false,
+          "replyIncludesAny": [
+            "escuché",
+            "está bien"
+          ]
+        },
+        {
+          "customerName": "Bruno Levatino",
+          "handoff": true
+        }
+      ]
+    },
+    {
+      "id": "human",
+      "turns": [
+        {
+          "text": "Quiero hablar con una persona",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        },
+        {
+          "text": "Sí, por favor",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": [
+        {
+          "replyIncludesAny": [
+            "avise",
+            "persona del equipo"
+          ]
+        },
+        {
+          "wantsHuman": true,
+          "replyIncludesAny": [
+            "avisé",
+            "equipo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "beaches",
+      "turns": [
+        {
+          "text": "¿Qué playas me recomendás?",
+          "voice": "es-CL-LorenzoNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "playa",
+          "coquimbo",
+          "avenida del mar"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "center",
+      "turns": [
+        {
+          "text": "¿Qué hay en el centro histórico?",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "plaza",
+          "catedral",
+          "recova"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "transport",
+      "turns": [
+        {
+          "text": "¿Cómo llego desde Santiago?",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "bus",
+          "viaje",
+          "horas"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "events",
+      "turns": [
+        {
+          "text": "¿Qué eventos hay en enero?",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "municipal",
+          "agenda",
+          "temporada"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "banks",
+      "turns": [
+        {
+          "text": "¿Hay cajeros o banco cerca?",
+          "voice": "es-CL-LorenzoNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "cajero",
+          "banco"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "wifi_cafes",
+      "turns": [
+        {
+          "text": "¿Hay wifi en los cafés?",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "wifi",
+          "wi-fi",
+          "café",
+          "local"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "supermarket",
+      "turns": [
+        {
+          "text": "¿Hay supermercado cerca?",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "minimarket",
+          "supermercado",
+          "cerca"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "ambiguous",
+      "turns": [
+        {
+          "text": "Hola, busco depto para tres personas",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "Carlo Magno"
+        ],
+        "maxCatalogMentions": 1,
+        "maxLinks": 1
+      }
+    },
+    {
+      "id": "noisy_price",
+      "turns": [
+        {
+          "text": "¿Cuánto sale el departamento?",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": true
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "66.000",
+          "CLP"
+        ]
+      }
+    },
+    {
+      "id": "fast_reservation",
+      "turns": [
+        {
+          "text": "Quiero reservar el Carlo Magno ya",
+          "voice": "es-CL-LorenzoNeural",
+          "rate": "+15%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "wantsReservation": true,
+        "replyIncludesAny": [
+          "nombre"
+        ]
+      }
+    },
+    {
+      "id": "explicit_name",
+      "turns": [
+        {
+          "text": "Me llamo Ana Gómez y quiero reservar",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        },
+        {
+          "text": "Sí, es correcto",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": [
+        {
+          "customerName": "Ana Gómez",
+          "handoff": false,
+          "replyIncludesAny": [
+            "escuché",
+            "está bien"
+          ]
+        },
+        {
+          "customerName": "Ana Gómez",
+          "handoff": true
+        }
+      ]
+    },
+    {
+      "id": "human_direct",
+      "turns": [
+        {
+          "text": "Pasame con un asesor",
+          "voice": "es-CL-CatalinaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "avise",
+          "persona del equipo"
+        ]
+      }
+    },
+    {
+      "id": "faro",
+      "turns": [
+        {
+          "text": "¿Dónde está el Faro Monumental?",
+          "voice": "es-AR-ElenaNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "faro",
+          "avenida del mar"
+        ],
+        "noCityPitch": true,
+        "maxCatalogMentions": 0,
+        "maxLinks": 0
+      }
+    },
+    {
+      "id": "deposit",
+      "turns": [
+        {
+          "text": "¿Hay que dejar depósito?",
+          "voice": "es-AR-TomasNeural",
+          "rate": "+0%",
+          "noise": false
+        }
+      ],
+      "checks": {
+        "replyIncludesAny": [
+          "no tengo",
+          "equipo",
+          "WhatsApp"
+        ]
+      }
+    }
+  ]
+}

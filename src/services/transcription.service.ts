@@ -149,7 +149,7 @@ export class TranscriptionService {
       // Algunos proveedores devuelven texto plano.
     }
 
-    const cleaned = cleanTranscript(text);
+    const cleaned = correctTranscript(cleanTranscript(text));
 
     if (!cleaned) {
       this.logger.info("audio sin voz detectable (externo)");
@@ -213,7 +213,7 @@ export class TranscriptionService {
         { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 },
       );
 
-      const text = cleanTranscript(stdout);
+      const text = correctTranscript(cleanTranscript(stdout));
 
       if (!text) {
         this.logger.info("audio sin voz detectable (local)");
@@ -262,6 +262,26 @@ function extensionFor(mimeType: string): string {
   if (mime.includes("webm")) return "webm";
   if (mime.includes("amr")) return "amr";
   return "ogg";
+}
+
+const TRANSCRIPT_CORRECTIONS: Array<[RegExp, string]> = [
+  [/\basionamiento\b/gi, "estacionamiento"],
+  [/\bestasionamiento\b/gi, "estacionamiento"],
+  [/\bde posito\b/gi, "depósito"],
+  [/\bdeposito\b/gi, "depósito"],
+  [/\bqui[eé]n es cocina\b/gi, "tiene cocina"],
+  [/\bqui[eé]n es balc[oó]n\b/gi, "tiene balcón"],
+  [/\besta (estacionamiento|ascensor|pileta|cocina|balc[oó]n|wifi)\b/gi, "$1"],
+  [/\bmechamos\b/gi, "me llamo"],
+  [/\bcarlo magno piso 1\b/gi, "Carlo Magno Piso 1"],
+  [/\breinos francos\b/gi, "Reinos Francos"],
+];
+
+function correctTranscript(text: string): string {
+  return TRANSCRIPT_CORRECTIONS.reduce(
+    (current, [pattern, replacement]) => current.replace(pattern, replacement),
+    text,
+  );
 }
 
 function cleanTranscript(raw: string): string {
