@@ -8,6 +8,7 @@ import { AlertService } from "./services/alert.service";
 import { ApiCentralService } from "./services/api-central.service";
 import { IaService } from "./services/ia.service";
 import { OrchestratorService } from "./services/orchestrator.service";
+import { TranscriptionService } from "./services/transcription.service";
 import { WhatsAppService } from "./services/whatsapp.service";
 
 function safeEqual(provided: string, expected: string): boolean {
@@ -41,7 +42,26 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const ia = new IaService(config);
   const whatsapp = new WhatsAppService(config, app.log);
   const alert = new AlertService(config, api, whatsapp, app.log);
-  const orchestrator = new OrchestratorService(api, ia, whatsapp, alert, app.log);
+  const transcription = new TranscriptionService(config, whatsapp, app.log);
+  const orchestrator = new OrchestratorService(
+    api,
+    ia,
+    whatsapp,
+    alert,
+    transcription,
+    app.log,
+  );
+
+  app.log.info(
+    {
+      enabled: transcription.enabled,
+      bin: config.whisperBin,
+      model: config.whisperModel,
+    },
+    transcription.enabled
+      ? "transcripción de audios activa"
+      : "transcripción de audios deshabilitada",
+  );
   const dedupe = new MessageDeduplicator();
 
   app.get("/health", async () => ({

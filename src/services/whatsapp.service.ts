@@ -57,6 +57,57 @@ export class WhatsAppService {
     );
   }
 
+  async downloadMedia(
+    mediaId: string,
+  ): Promise<{ buffer: Buffer; mimeType: string }> {
+    if (this.mock) {
+      throw new Error("WhatsApp está en modo mock: no se pueden descargar audios");
+    }
+
+    const metadataResponse = await fetch(
+      `https://graph.facebook.com/${this.config.whatsappApiVersion}/${mediaId}`,
+      {
+        headers: { Authorization: `Bearer ${this.config.whatsappToken}` },
+        signal: AbortSignal.timeout(20_000),
+      },
+    );
+
+    if (!metadataResponse.ok) {
+      throw new Error(
+        `No se pudo obtener el audio de WhatsApp (${metadataResponse.status})`,
+      );
+    }
+
+    const metadata = (await metadataResponse.json()) as {
+      url?: string;
+      mime_type?: string;
+      file_size?: number;
+    };
+
+    if (!metadata.url) {
+      throw new Error("WhatsApp no devolvió la URL del audio");
+    }
+
+    const mediaResponse = await fetch(metadata.url, {
+      headers: { Authorization: `Bearer ${this.config.whatsappToken}` },
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!mediaResponse.ok) {
+      throw new Error(
+        `No se pudo descargar el audio (${mediaResponse.status})`,
+      );
+    }
+
+    return {
+      buffer: Buffer.from(await mediaResponse.arrayBuffer()),
+      mimeType:
+        metadata.mime_type ??
+        mediaResponse.headers.get("content-type") ??
+        "audio/ogg",
+    };
+  }
+
   async sendTemplate(
     to: string,
     name: string,

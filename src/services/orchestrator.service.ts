@@ -4,6 +4,7 @@ import type { ApartmentContext, StoredMessage } from "../types";
 import type { AlertService } from "./alert.service";
 import type { ApiCentralService } from "./api-central.service";
 import type { IaService } from "./ia.service";
+import type { TranscriptionService } from "./transcription.service";
 import type { WhatsAppService } from "./whatsapp.service";
 
 const FALLBACK_REPLY =
@@ -30,12 +31,17 @@ export class OrchestratorService {
     private readonly ia: IaService,
     private readonly whatsapp: WhatsAppService,
     private readonly alert: AlertService,
+    private readonly transcription: TranscriptionService,
     private readonly logger: FastifyBaseLogger,
   ) {}
 
-  async handleMessage(phone: string, text: string): Promise<void> {
+  async handleMessage(
+    phone: string,
+    text: string,
+    storedText = text,
+  ): Promise<void> {
     const { session, messages } = await this.api.session(phone);
-    await this.api.appendMessage(phone, "USER", text);
+    await this.api.appendMessage(phone, "USER", storedText);
 
     if (!session.botActive) {
       this.logger.info({ phone }, "bot pausado: el mensaje queda para el operador");
@@ -43,6 +49,34 @@ export class OrchestratorService {
     }
 
     await this.respond(phone, text, messages, session);
+  }
+
+  async handleAudio(phone: string, mediaId: string): Promise<void> {
+    const transcript = await this.transcription.transcribe(mediaId);
+
+    if (!transcript) {
+      await this.api
+        .appendMessage(phone, "USER", "[Audio no transcrito]")
+        .catch(() => undefined);
+
+      try {
+        const { session } = await this.api.session(phone);
+        if (session.botActive) {
+          await this.whatsapp.sendText(
+            phone,
+            "No pude escuchar el audio. ¿Me lo podés escribir?",
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          { err: error, phone },
+          "error respondiendo audio no transcrito",
+        );
+      }
+      return;
+    }
+
+    await this.handleMessage(phone, transcript, `🎤 ${transcript}`);
   }
 
   private async respond(

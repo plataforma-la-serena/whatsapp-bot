@@ -28,6 +28,13 @@ function isTextMessage(message: WhatsAppMessage): boolean {
   return message.type === "text" && Boolean(message.text?.body);
 }
 
+function isAudioMessage(message: WhatsAppMessage): boolean {
+  return (
+    (message.type === "audio" || message.type === "voice") &&
+    Boolean(message.audio?.id)
+  );
+}
+
 function safeEqual(provided: string, expected: string): boolean {
   const left = Buffer.from(provided);
   const right = Buffer.from(expected);
@@ -78,17 +85,34 @@ export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
     }
 
     const payload = request.body as WhatsAppWebhookPayload;
-    const messages = extractMessages(payload).filter(isTextMessage);
+    const messages = extractMessages(payload).filter(
+      (message) => isTextMessage(message) || isAudioMessage(message),
+    );
 
     for (const message of messages) {
       if (!deps.dedupe.firstTime(message.id)) {
         continue;
       }
-      void deps.orchestrator
-        .handleMessage(message.from, message.text!.body)
-        .catch((error: unknown) => {
-          app.log.error({ err: error, id: message.id }, "error en el webhook");
-        });
+
+      if (isTextMessage(message)) {
+        void deps.orchestrator
+          .handleMessage(message.from, message.text!.body)
+          .catch((error: unknown) => {
+            app.log.error({ err: error, id: message.id }, "error en el webhook");
+          });
+        continue;
+      }
+
+      if (isAudioMessage(message)) {
+        void deps.orchestrator
+          .handleAudio(message.from, message.audio!.id)
+          .catch((error: unknown) => {
+            app.log.error(
+              { err: error, id: message.id },
+              "error procesando audio en el webhook",
+            );
+          });
+      }
     }
 
     return reply.code(200).send({ received: true });

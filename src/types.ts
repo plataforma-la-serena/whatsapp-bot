@@ -4,6 +4,11 @@ export interface WhatsAppMessage {
   timestamp: string;
   type: string;
   text?: { body: string };
+  audio?: {
+    id: string;
+    mime_type?: string;
+    voice?: boolean;
+  };
 }
 
 export interface WhatsAppWebhookPayload {

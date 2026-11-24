@@ -33,3 +33,24 @@ El bot envía `{{1}}` = teléfono del cliente y `{{2}}` = motivo
 (`quiere hablar con una persona real` o `está interesado en reservar`).
 
 Para probar sin enviar mensajes reales, usar `WHATSAPP_ALERT_DRY_RUN=true`.
+
+## Audios
+
+Las notas de voz se descargan de WhatsApp, se convierten con `ffmpeg` y se
+transcriben con `whisper.cpp`. La transcripción se guarda como mensaje del
+cliente (con el prefijo 🎤) y se procesa como si hubiera escrito ese texto.
+
+Instalación:
+
+```bash
+bash scripts/setup-whisper.sh
+```
+
+Por defecto usa `~/.local/share/whisper.cpp` con el modelo `base`
+(multilingüe, ~142 MB). Se puede cambiar con `WHISPER_BIN`, `WHISPER_MODEL`,
+`WHISPER_LANGUAGE` y `WHISPER_THREADS`. Para mejor precisión en español se
+puede descargar `small` (`bash models/download-ggml-model.sh small` en el
+directorio de whisper.cpp) y apuntar `WHISPER_MODEL` a ese archivo.
+
+Si la transcripción falla, el bot responde "No pude escuchar el audio. ¿Me lo
+podés escribir?" y deja el intento registrado en el panel.

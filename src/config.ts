@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+
 export interface AppConfig {
   port: number;
   logLevel: string;
@@ -16,6 +18,13 @@ export interface AppConfig {
   alertTemplateName: string;
   alertTemplateLang: string;
   alertDryRun: boolean;
+  transcriptionEnabled: boolean;
+  whisperBin: string;
+  whisperModel: string;
+  whisperLanguage: string;
+  whisperThreads: number;
+  ffmpegBin: string;
+  maxAudioBytes: number;
 }
 
 export function loadConfig(): AppConfig {
@@ -40,6 +49,17 @@ export function loadConfig(): AppConfig {
     alertTemplateName: process.env.WHATSAPP_ALERT_TEMPLATE ?? "",
     alertTemplateLang: process.env.WHATSAPP_ALERT_TEMPLATE_LANG ?? "es",
     alertDryRun: process.env.WHATSAPP_ALERT_DRY_RUN === "true",
+    transcriptionEnabled: process.env.WHISPER_ENABLED !== "false",
+    whisperBin:
+      process.env.WHISPER_BIN ??
+      `${homedir()}/.local/share/whisper.cpp/build/bin/whisper-cli`,
+    whisperModel:
+      process.env.WHISPER_MODEL ??
+      `${homedir()}/.local/share/whisper.cpp/models/ggml-base.bin`,
+    whisperLanguage: process.env.WHISPER_LANGUAGE ?? "es",
+    whisperThreads: Number(process.env.WHISPER_THREADS ?? 4),
+    ffmpegBin: process.env.FFMPEG_BIN ?? "ffmpeg",
+    maxAudioBytes: Number(process.env.MAX_AUDIO_BYTES ?? 25 * 1024 * 1024),
   };
 }
 
