@@ -44,6 +44,18 @@ export class OrchestratorService {
     const { session, messages } = await this.api.session(phone);
     await this.api.appendMessage(phone, "USER", storedText);
 
+    // El número de avisos puede abrir su ventana de 24 h con un comando simple.
+    if (
+      phone === this.alert.alertPhone &&
+      /^(abrir avisos|canal de avisos|\/avisos)\b/i.test(text.trim())
+    ) {
+      await this.whatsapp.sendText(
+        phone,
+        "Canal de avisos abierto por 24 h. Los próximos avisos de reservas y pedidos de atención humana van a llegar por acá.",
+      );
+      return;
+    }
+
     if (!session.botActive) {
       this.logger.info({ phone }, "bot pausado: el mensaje queda para el operador");
       return;

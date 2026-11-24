@@ -32,6 +32,16 @@ Ejemplo: `5491111111111` / `quiere hablar con una persona real`.
 El bot envía `{{1}}` = teléfono del cliente y `{{2}}` = motivo
 (`quiere hablar con una persona real` o `está interesado en reservar`).
 
+Para abrir la ventana de 24 h sin depender de una plantilla, el número de avisos
+puede enviar al bot:
+
+```text
+abrir avisos
+```
+
+El bot responde confirmando el canal y, desde ese mensaje, los avisos llegan como
+texto libre durante 24 horas.
+
 Para probar sin enviar mensajes reales, usar `WHATSAPP_ALERT_DRY_RUN=true`.
 
 ## Audios

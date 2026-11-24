@@ -27,6 +27,10 @@ export class AlertService {
     private readonly logger: FastifyBaseLogger,
   ) {}
 
+  get alertPhone(): string {
+    return this.config.alertPhone;
+  }
+
   async notify({ phone, name, kind }: AlertInput): Promise<void> {
     const detail =
       kind === "human"
