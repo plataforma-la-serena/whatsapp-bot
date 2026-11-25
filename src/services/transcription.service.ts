@@ -252,16 +252,20 @@ export class TranscriptionService {
   }
 }
 
+const AUDIO_EXTENSIONS: Array<[string, string]> = [
+  ["ogg", "ogg"],
+  ["mpeg", "mp3"],
+  ["mp3", "mp3"],
+  ["mp4", "m4a"],
+  ["m4a", "m4a"],
+  ["wav", "wav"],
+  ["webm", "webm"],
+  ["amr", "amr"],
+];
+
 function extensionFor(mimeType: string): string {
   const mime = mimeType.toLowerCase();
-
-  if (mime.includes("ogg")) return "ogg";
-  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
-  if (mime.includes("mp4") || mime.includes("m4a")) return "m4a";
-  if (mime.includes("wav")) return "wav";
-  if (mime.includes("webm")) return "webm";
-  if (mime.includes("amr")) return "amr";
-  return "ogg";
+  return AUDIO_EXTENSIONS.find(([needle]) => mime.includes(needle))?.[1] ?? "ogg";
 }
 
 const TRANSCRIPT_CORRECTIONS: Array<[RegExp, string]> = [

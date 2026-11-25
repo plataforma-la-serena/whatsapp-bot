@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { timingSafeEqual } from "node:crypto";
 import type { AppConfig } from "../config";
 import type { MessageDeduplicator } from "../lib/dedupe";
@@ -16,6 +16,11 @@ export interface WebhookDeps {
   config: AppConfig;
   orchestrator: OrchestratorService;
   dedupe: MessageDeduplicator;
+}
+
+interface RouteError {
+  code: number;
+  error: string;
 }
 
 function extractMessages(payload: WhatsAppWebhookPayload): WhatsAppMessage[] {
@@ -44,24 +49,85 @@ function safeEqual(provided: string, expected: string): boolean {
   return timingSafeEqual(left, right);
 }
 
+/** Devuelve el challenge si la verificación es válida, o null. */
+function verifyChallenge(query: WebhookQuery, expected: string): string | null {
+  const mode = query["hub.mode"];
+  const token = query["hub.verify_token"];
+
+  if (mode !== "subscribe" || !token) {
+    return null;
+  }
+  if (!safeEqual(token, expected)) {
+    return null;
+  }
+  return query["hub.challenge"] ?? "";
+}
+
+/** Valida la firma del webhook; devuelve el error a responder o null. */
+function signatureError(
+  signature: string | string[] | undefined,
+  rawBody: Buffer,
+  config: AppConfig,
+): RouteError | null {
+  if (!config.whatsappAppSecret) {
+    return config.isProduction
+      ? { code: 500, error: "WHATSAPP_APP_SECRET no configurado" }
+      : null;
+  }
+
+  if (
+    typeof signature !== "string" ||
+    !verifySignature(rawBody, signature, config.whatsappAppSecret)
+  ) {
+    return { code: 401, error: "Firma inválida" };
+  }
+  return null;
+}
+
+function dispatchMessage(
+  app: FastifyInstance,
+  deps: WebhookDeps,
+  message: WhatsAppMessage,
+): void {
+  if (!deps.dedupe.firstTime(message.id)) {
+    return;
+  }
+
+  if (isTextMessage(message)) {
+    void deps.orchestrator
+      .handleMessage(message.from, message.text!.body)
+      .catch((error: unknown) => {
+        app.log.error({ err: error, id: message.id }, "error en el webhook");
+      });
+    return;
+  }
+
+  if (isAudioMessage(message)) {
+    void deps.orchestrator
+      .handleAudio(message.from, message.audio!.id)
+      .catch((error: unknown) => {
+        app.log.error(
+          { err: error, id: message.id },
+          "error procesando audio en el webhook",
+        );
+      });
+  }
+}
+
 export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
   app,
   deps,
 ) => {
   app.get<{ Querystring: WebhookQuery }>("/webhook", async (request, reply) => {
-    const mode = request.query["hub.mode"];
-    const token = request.query["hub.verify_token"];
-    const challenge = request.query["hub.challenge"];
+    const challenge = verifyChallenge(
+      request.query,
+      deps.config.whatsappVerifyToken,
+    );
 
-    if (
-      mode === "subscribe" &&
-      token &&
-      safeEqual(token, deps.config.whatsappVerifyToken)
-    ) {
-      return reply.code(200).send(challenge ?? "");
+    if (challenge === null) {
+      return reply.code(403).send({ error: "Verificación fallida" });
     }
-
-    return reply.code(403).send({ error: "Verificación fallida" });
+    return reply.code(200).send(challenge);
   });
 
   app.post("/webhook", async (request, reply) => {
@@ -70,18 +136,13 @@ export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
       return reply.code(400).send({ error: "Cuerpo requerido" });
     }
 
-    if (deps.config.whatsappAppSecret) {
-      const signature = request.headers["x-hub-signature-256"];
-      if (
-        typeof signature !== "string" ||
-        !verifySignature(rawBody, signature, deps.config.whatsappAppSecret)
-      ) {
-        return reply.code(401).send({ error: "Firma inválida" });
-      }
-    } else if (deps.config.isProduction) {
-      return reply
-        .code(500)
-        .send({ error: "WHATSAPP_APP_SECRET no configurado" });
+    const signed = signatureError(
+      request.headers["x-hub-signature-256"],
+      rawBody,
+      deps.config,
+    );
+    if (signed) {
+      return reply.code(signed.code).send({ error: signed.error });
     }
 
     const payload = request.body as WhatsAppWebhookPayload;
@@ -90,29 +151,7 @@ export const webhookRoutes: FastifyPluginAsync<WebhookDeps> = async (
     );
 
     for (const message of messages) {
-      if (!deps.dedupe.firstTime(message.id)) {
-        continue;
-      }
-
-      if (isTextMessage(message)) {
-        void deps.orchestrator
-          .handleMessage(message.from, message.text!.body)
-          .catch((error: unknown) => {
-            app.log.error({ err: error, id: message.id }, "error en el webhook");
-          });
-        continue;
-      }
-
-      if (isAudioMessage(message)) {
-        void deps.orchestrator
-          .handleAudio(message.from, message.audio!.id)
-          .catch((error: unknown) => {
-            app.log.error(
-              { err: error, id: message.id },
-              "error procesando audio en el webhook",
-            );
-          });
-      }
+      dispatchMessage(app, deps, message);
     }
 
     return reply.code(200).send({ received: true });

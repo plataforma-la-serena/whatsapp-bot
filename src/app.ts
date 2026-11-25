@@ -20,6 +20,58 @@ function safeEqual(provided: string, expected: string): boolean {
   return timingSafeEqual(left, right);
 }
 
+function isAuthorized(
+  provided: string | string[] | undefined,
+  expected: string,
+): boolean {
+  return typeof provided === "string" && safeEqual(provided, expected);
+}
+
+interface OperatorMessage {
+  to: string;
+  text: string;
+}
+
+function readOperatorMessage(body: unknown): OperatorMessage | null {
+  const payload = body as { to?: string; text?: string } | undefined;
+  const to = String(payload?.to ?? "");
+  const text = String(payload?.text ?? "").trim();
+
+  if (!/^[0-9]{8,15}$/.test(to) || text.length === 0 || text.length > 4000) {
+    return null;
+  }
+  return { to, text };
+}
+
+function registerInternalMessages(
+  app: FastifyInstance,
+  whatsapp: WhatsAppService,
+  config: AppConfig,
+): void {
+  app.post("/internal/messages", async (request, reply) => {
+    const provided = request.headers["x-internal-token"];
+    if (!isAuthorized(provided, config.internalApiToken)) {
+      return reply.code(401).send({ error: "No autorizado" });
+    }
+
+    const message = readOperatorMessage(request.body);
+    if (!message) {
+      return reply.code(400).send({ error: "Mensaje inválido" });
+    }
+
+    try {
+      await whatsapp.sendText(message.to, message.text);
+      return { ok: true };
+    } catch (error) {
+      request.log.error(
+        { err: error, to: message.to },
+        "error enviando mensaje del operador",
+      );
+      return reply.code(502).send({ error: "No se pudo enviar el mensaje" });
+    }
+  });
+}
+
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
 
@@ -31,7 +83,10 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       try {
         done(null, JSON.parse((body as Buffer).toString("utf8")));
       } catch (error) {
-        done(error as Error, undefined);
+        // Un cuerpo malformado es un error del cliente, no del servidor.
+        const invalid = error as Error & { statusCode?: number };
+        invalid.statusCode = 400;
+        done(invalid, undefined);
       }
     },
   );
@@ -73,31 +128,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     mode: isWhatsAppMock(config) ? "mock" : "live",
   }));
 
-  app.post("/internal/messages", async (request, reply) => {
-    const provided = request.headers["x-internal-token"];
-    if (
-      typeof provided !== "string" ||
-      !safeEqual(provided, config.internalApiToken)
-    ) {
-      return reply.code(401).send({ error: "No autorizado" });
-    }
-
-    const body = request.body as { to?: string; text?: string } | undefined;
-    const to = String(body?.to ?? "");
-    const text = String(body?.text ?? "").trim();
-
-    if (!/^[0-9]{8,15}$/.test(to) || text.length === 0 || text.length > 4000) {
-      return reply.code(400).send({ error: "Mensaje inválido" });
-    }
-
-    try {
-      await whatsapp.sendText(to, text);
-      return { ok: true };
-    } catch (error) {
-      request.log.error({ err: error, to }, "error enviando mensaje del operador");
-      return reply.code(502).send({ error: "No se pudo enviar el mensaje" });
-    }
-  });
+  registerInternalMessages(app, whatsapp, config);
 
   await app.register(webhookRoutes, { config, orchestrator, dedupe });
   return app;

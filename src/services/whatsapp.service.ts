@@ -182,21 +182,7 @@ export class WhatsAppService {
     }
 
     if (source.link) {
-      if (!/^\/media\/[a-z0-9-]+$/i.test(source.link)) {
-        throw new Error("Ruta de imagen inválida");
-      }
-
-      const response = await fetch(`${this.config.apiCentralUrl}${source.link}`, {
-        signal: AbortSignal.timeout(15_000),
-      });
-
-      if (!response.ok) {
-        throw new Error("No se pudo descargar la imagen del departamento");
-      }
-
-      const mimeType = response.headers.get("content-type") ?? "image/jpeg";
-      const data = new Uint8Array(await response.arrayBuffer());
-      return { id: await this.uploadImage(data, mimeType) };
+      return this.resolveLinkMedia(source.link);
     }
 
     if (!source.path) {
@@ -205,6 +191,24 @@ export class WhatsAppService {
 
     const data = new Uint8Array(await readFile(source.path));
     return { id: await this.uploadImage(data, "image/jpeg") };
+  }
+
+  private async resolveLinkMedia(link: string): Promise<{ id: string }> {
+    if (!/^\/media\/[a-z0-9-]+$/i.test(link)) {
+      throw new Error("Ruta de imagen inválida");
+    }
+
+    const response = await fetch(`${this.config.apiCentralUrl}${link}`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!response.ok) {
+      throw new Error("No se pudo descargar la imagen del departamento");
+    }
+
+    const mimeType = response.headers.get("content-type") ?? "image/jpeg";
+    const data = new Uint8Array(await response.arrayBuffer());
+    return { id: await this.uploadImage(data, mimeType) };
   }
 
   private async uploadImage(

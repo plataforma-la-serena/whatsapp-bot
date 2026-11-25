@@ -69,3 +69,16 @@ local: `TRANSCRIPTION_MODE=local`.
 
 Si la transcripción falla por completo, el bot responde "No pude escuchar el
 audio. ¿Me lo podés escribir?" y deja el intento registrado en el panel.
+
+## Calidad
+
+```bash
+npm run typecheck  # tipos
+npm test           # pruebas (Vitest)
+npm run coverage   # pruebas + coverage/coverage-summary.json
+npm run build      # compila a dist/
+npm audit --omit=dev
+```
+
+CI en `.github/workflows/ci.yml`: install → typecheck → test + coverage → build
+→ auditoría de dependencias.
