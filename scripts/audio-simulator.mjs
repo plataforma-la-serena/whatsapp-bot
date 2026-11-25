@@ -18,6 +18,11 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+/** Salida del simulador: stdout explícito, no logging de depuración. */
+function out(line = "") {
+  process.stdout.write(`${line}\n`);
+}
+
 const BOT_ROOT = resolve(process.env.BOT_ROOT ?? process.cwd());
 const AUDIO_DIR = resolve(process.env.AUDIO_DIR ?? join(BOT_ROOT, "scripts/audio"));
 const API_URL = process.env.API_URL ?? "http://localhost:3101";
@@ -59,8 +64,8 @@ const normalize = (text) =>
 
 const logger = {
   info: () => {},
-  warn: (...args) => console.log("warn:", ...args),
-  error: (...args) => console.log("error:", ...args),
+  warn: (...args) => process.stderr.write(`warn: ${args.join(" ")}\n`),
+  error: (...args) => process.stderr.write(`error: ${args.join(" ")}\n`),
 };
 
 const config = loadConfig();
@@ -238,7 +243,7 @@ async function main() {
     headers: { "x-service-token": INTERNAL_TOKEN },
   });
   const apartments = await contextResponse.json();
-  console.log(
+  out(
     `Contexto: ${apartments.length} departamento(s) | audios: ${AUDIO_DIR}`,
   );
 
@@ -313,13 +318,13 @@ async function main() {
       });
 
       const status = evaluated.flags.length === 0 ? "OK " : "FAIL";
-      console.log(
+      out(
         `${status} ${testCase.id}#${turnIndex} | WER ${evaluated.transcriptWer.toFixed(2)} | ${evaluated.flags.join(", ")}`,
       );
       if (evaluated.flags.length > 0) {
-        console.log(`     > ${turn.text}`);
-        console.log(`     < ${transcript ?? "(sin transcripción)"}`);
-        console.log(`     bot> ${String(data?.reply ?? "").replace(/\n/g, " ").slice(0, 220)}`);
+        out(`     > ${turn.text}`);
+        out(`     < ${transcript ?? "(sin transcripción)"}`);
+        out(`     bot> ${String(data?.reply ?? "").replace(/\n/g, " ").slice(0, 220)}`);
       }
     }
   }
@@ -333,10 +338,10 @@ async function main() {
   };
   writeFileSync(REPORT, JSON.stringify(report, null, 2));
 
-  console.log(
+  out(
     `\nAudios: ${turnCount} | Fallos: ${failures} | WER promedio: ${(report.averageWer * 100).toFixed(1)}%`,
   );
-  console.log(`Reporte: ${REPORT}`);
+  out(`Reporte: ${REPORT}`);
   process.exit(failures > 0 ? 1 : 0);
 }
 

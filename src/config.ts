@@ -32,55 +32,82 @@ export interface AppConfig {
   maxAudioBytes: number;
 }
 
+function text(name: string, fallback = ""): string {
+  return process.env[name] ?? fallback;
+}
+
+function url(name: string, fallback: string): string {
+  return text(name, fallback).replace(/\/$/, "");
+}
+
+function num(name: string, fallback: number): number {
+  return Number(process.env[name] ?? fallback);
+}
+
+function is(name: string, expected: string): boolean {
+  return process.env[name] === expected;
+}
+
+function firstDefined(names: string[], fallback: string): string {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return fallback;
+}
+
 export function loadConfig(): AppConfig {
   return {
-    port: Number(process.env.PORT ?? 3003),
-    logLevel: process.env.LOG_LEVEL ?? "info",
-    isProduction: process.env.NODE_ENV === "production",
-    apiCentralUrl: (process.env.API_CENTRAL_URL ?? "http://localhost:3001").replace(
-      /\/$/,
-      "",
-    ),
-    internalApiToken: process.env.INTERNAL_API_TOKEN ?? "",
-    iaUrl: (process.env.IA_URL ?? "http://localhost:3002").replace(/\/$/, ""),
-    iaTimeoutMs: Number(process.env.IA_TIMEOUT_MS ?? 20000),
-    whatsappToken: process.env.WHATSAPP_TOKEN ?? "",
-    whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? "",
-    whatsappAppSecret: process.env.WHATSAPP_APP_SECRET ?? "",
-    whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? "",
-    whatsappApiVersion: process.env.WHATSAPP_API_VERSION ?? "v21.0",
-    catalogUrl: process.env.CATALOG_URL ?? "http://localhost:3000",
-    alertPhone: process.env.WHATSAPP_ALERT_PHONE ?? "5492613368554",
-    alertTemplateName: process.env.WHATSAPP_ALERT_TEMPLATE ?? "",
-    alertTemplateLang: process.env.WHATSAPP_ALERT_TEMPLATE_LANG ?? "es",
-    alertDryRun: process.env.WHATSAPP_ALERT_DRY_RUN === "true",
+    port: num("PORT", 3003),
+    logLevel: text("LOG_LEVEL", "info"),
+    isProduction: is("NODE_ENV", "production"),
+    apiCentralUrl: url("API_CENTRAL_URL", "http://localhost:3001"),
+    internalApiToken: text("INTERNAL_API_TOKEN"),
+    iaUrl: url("IA_URL", "http://localhost:3002"),
+    iaTimeoutMs: num("IA_TIMEOUT_MS", 20000),
+    whatsappToken: text("WHATSAPP_TOKEN"),
+    whatsappPhoneNumberId: text("WHATSAPP_PHONE_NUMBER_ID"),
+    whatsappAppSecret: text("WHATSAPP_APP_SECRET"),
+    whatsappVerifyToken: text("WHATSAPP_VERIFY_TOKEN"),
+    whatsappApiVersion: text("WHATSAPP_API_VERSION", "v21.0"),
+    catalogUrl: text("CATALOG_URL", "http://localhost:3000"),
+    alertPhone: text("WHATSAPP_ALERT_PHONE", "5492613368554"),
+    alertTemplateName: text("WHATSAPP_ALERT_TEMPLATE"),
+    alertTemplateLang: text("WHATSAPP_ALERT_TEMPLATE_LANG", "es"),
+    alertDryRun: is("WHATSAPP_ALERT_DRY_RUN", "true"),
     transcriptionEnabled: process.env.WHISPER_ENABLED !== "false",
     transcriptionMode:
       process.env.TRANSCRIPTION_MODE === "local" ? "local" : "external",
-    transcriptionApiUrl:
-      process.env.TRANSCRIPTION_API_URL ??
+    transcriptionApiUrl: text(
+      "TRANSCRIPTION_API_URL",
       "https://api.groq.com/openai/v1/audio/transcriptions",
-    transcriptionApiKey:
-      process.env.TRANSCRIPTION_API_KEY ??
-      process.env.GROQ_API_KEY ??
-      process.env.OPENAI_API_KEY ??
+    ),
+    transcriptionApiKey: firstDefined(
+      ["TRANSCRIPTION_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY"],
       "",
-    transcriptionModel:
-      process.env.TRANSCRIPTION_MODEL ?? "whisper-large-v3-turbo",
-    transcriptionLanguage:
-      process.env.TRANSCRIPTION_LANGUAGE ??
-      process.env.WHISPER_LANGUAGE ??
+    ),
+    transcriptionModel: text(
+      "TRANSCRIPTION_MODEL",
+      "whisper-large-v3-turbo",
+    ),
+    transcriptionLanguage: firstDefined(
+      ["TRANSCRIPTION_LANGUAGE", "WHISPER_LANGUAGE"],
       "es",
-    whisperBin:
-      process.env.WHISPER_BIN ??
+    ),
+    whisperBin: text(
+      "WHISPER_BIN",
       `${homedir()}/.local/share/whisper.cpp/build/bin/whisper-cli`,
-    whisperModel:
-      process.env.WHISPER_MODEL ??
+    ),
+    whisperModel: text(
+      "WHISPER_MODEL",
       `${homedir()}/.local/share/whisper.cpp/models/ggml-base.bin`,
-    whisperLanguage: process.env.WHISPER_LANGUAGE ?? "es",
-    whisperThreads: Number(process.env.WHISPER_THREADS ?? 4),
-    ffmpegBin: process.env.FFMPEG_BIN ?? "ffmpeg",
-    maxAudioBytes: Number(process.env.MAX_AUDIO_BYTES ?? 25 * 1024 * 1024),
+    ),
+    whisperLanguage: text("WHISPER_LANGUAGE", "es"),
+    whisperThreads: num("WHISPER_THREADS", 4),
+    ffmpegBin: text("FFMPEG_BIN", "ffmpeg"),
+    maxAudioBytes: num("MAX_AUDIO_BYTES", 25 * 1024 * 1024),
   };
 }
 

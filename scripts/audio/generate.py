@@ -23,11 +23,11 @@ edge_tts = os.environ.get(
 )
 
 if shutil.which(edge_tts) is None and not Path(edge_tts).exists():
-    print(f"No se encontró edge-tts ({edge_tts}). Instalalo o pasá EDGE_TTS.", file=sys.stderr)
+    sys.stderr.write(f"No se encontró edge-tts ({edge_tts}). Instalalo o pasá EDGE_TTS.\n")
     sys.exit(1)
 
 if shutil.which("ffmpeg") is None:
-    print("Falta ffmpeg.", file=sys.stderr)
+    sys.stderr.write("Falta ffmpeg.\n")
     sys.exit(1)
 
 manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
@@ -110,6 +110,6 @@ for case in manifest["cases"]:
             )
 
         mp3.unlink(missing_ok=True)
-        print(f"{ogg.name}")
+        sys.stdout.write(f"{ogg.name}\n")
 
-print(f"\nAudios generados en {AUDIO_DIR}")
+sys.stdout.write(f"\nAudios generados en {AUDIO_DIR}\n")

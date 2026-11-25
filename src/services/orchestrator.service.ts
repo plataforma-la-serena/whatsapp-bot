@@ -13,6 +13,25 @@ const FALLBACK_REPLY =
 const MAX_IMAGES = 4;
 const PHOTO_REQUEST = /\b(foto|fotos|imagen|imagenes|mostrame|mostrar|mostra|ver)\b/;
 
+type ChatSession =
+  Awaited<ReturnType<ApiCentralService["session"]>>["session"];
+type IaReply = Awaited<ReturnType<IaService["reply"]>>;
+
+interface RespondInput {
+  phone: string;
+  text: string;
+  messages: StoredMessage[];
+  session: ChatSession;
+  source: "text" | "audio";
+}
+
+interface ImagesInput {
+  apartmentIds: string[];
+  apartments: ApartmentContext[];
+  userText: string;
+  history: StoredMessage[];
+}
+
 function toHistory(
   messages: StoredMessage[],
 ): Array<{ role: "user" | "assistant"; content: string }> {
@@ -61,7 +80,7 @@ export class OrchestratorService {
       return;
     }
 
-    await this.respond(phone, text, messages, session, source);
+    await this.respond({ phone, text, messages, session, source });
   }
 
   async handleAudio(phone: string, mediaId: string): Promise<void> {
@@ -92,13 +111,9 @@ export class OrchestratorService {
     await this.handleMessage(phone, transcript, `🎤 ${transcript}`, "audio");
   }
 
-  private async respond(
-    phone: string,
-    text: string,
-    messages: StoredMessage[],
-    session: Awaited<ReturnType<ApiCentralService["session"]>>["session"],
-    source: "text" | "audio",
-  ): Promise<void> {
+  private async respond(input: RespondInput): Promise<void> {
+    const { phone, text, messages, session, source } = input;
+
     try {
       const apartments = await this.api.context();
       const result = await this.ia.reply({
@@ -112,107 +127,135 @@ export class OrchestratorService {
       await this.api.appendMessage(phone, "ASSISTANT", result.reply);
 
       const name = result.customerName ?? session.customerName ?? null;
-      const humanRequested = Boolean(result.wantsHuman);
-      const reservationInterest = Boolean(result.wantsReservation);
-      const humanIsNew = humanRequested && !session.wantsHuman;
-      const reservationIsNew =
-        reservationInterest && !session.wantsReservation;
-
-      if (name || reservationInterest || humanRequested) {
-        await this.api.setLead(phone, {
-          name: name ?? undefined,
-          wantsReservation: reservationInterest || undefined,
-          wantsHuman: humanRequested || undefined,
-        });
-      }
-
-      if (humanRequested) {
-        await this.api.setBotActive(phone, false);
-        this.logger.info(
-          { phone },
-          "pedido de humano: bot pausado para intervención humana",
-        );
-      } else if (result.handoff) {
-        await this.api.setBotActive(phone, false);
-        this.logger.info({ phone }, "handoff: bot pausado para intervención humana");
-      }
-
+      await this.syncLead(phone, name, result);
+      await this.pauseBotIfNeeded(phone, result);
       await this.whatsapp.sendText(phone, result.reply);
-
-      if (humanIsNew) {
-        await this.alert.notify({ phone, name, kind: "human" });
-      }
-      if (reservationIsNew) {
-        await this.alert.notify({ phone, name, kind: "reservation" });
-      }
-      await this.sendApartmentImages(
-        phone,
-        result.apartmentIds ?? [],
+      await this.notifyTeam(phone, name, result, session);
+      await this.sendApartmentImages(phone, {
+        apartmentIds: result.apartmentIds ?? [],
         apartments,
-        text,
-        messages,
-      );
+        userText: text,
+        history: messages,
+      });
     } catch (error) {
       this.logger.error({ err: error, phone }, "error procesando el mensaje");
       await this.whatsapp.sendText(phone, FALLBACK_REPLY).catch(() => undefined);
     }
   }
 
+  private async syncLead(
+    phone: string,
+    name: string | null,
+    result: IaReply,
+  ): Promise<void> {
+    const wantsReservation = Boolean(result.wantsReservation);
+    const wantsHuman = Boolean(result.wantsHuman);
+    const hasLead = Boolean(name) || wantsReservation || wantsHuman;
+
+    if (!hasLead) {
+      return;
+    }
+
+    await this.api.setLead(phone, {
+      name: name ?? undefined,
+      wantsReservation: wantsReservation || undefined,
+      wantsHuman: wantsHuman || undefined,
+    });
+  }
+
+  private async pauseBotIfNeeded(phone: string, result: IaReply): Promise<void> {
+    if (result.wantsHuman) {
+      await this.api.setBotActive(phone, false);
+      this.logger.info(
+        { phone },
+        "pedido de humano: bot pausado para intervención humana",
+      );
+      return;
+    }
+
+    if (result.handoff) {
+      await this.api.setBotActive(phone, false);
+      this.logger.info(
+        { phone },
+        "handoff: bot pausado para intervención humana",
+      );
+    }
+  }
+
+  private async notifyTeam(
+    phone: string,
+    name: string | null,
+    result: IaReply,
+    session: ChatSession,
+  ): Promise<void> {
+    if (result.wantsHuman && !session.wantsHuman) {
+      await this.alert.notify({ phone, name, kind: "human" });
+    }
+    if (result.wantsReservation && !session.wantsReservation) {
+      await this.alert.notify({ phone, name, kind: "reservation" });
+    }
+  }
+
   private async sendApartmentImages(
     phone: string,
-    apartmentIds: string[],
-    apartments: ApartmentContext[],
-    userText: string,
-    history: StoredMessage[],
+    input: ImagesInput,
   ): Promise<void> {
-    let sent = 0;
+    const { apartmentIds, apartments, userText, history } = input;
     const askedForPhotos = PHOTO_REQUEST.test(normalize(userText));
     const alreadyDiscussed = normalize(
       history.map((message) => message.content).join("\n"),
     );
+    let sent = 0;
 
     for (const id of apartmentIds) {
       if (sent >= MAX_IMAGES) {
         return;
       }
 
-      const index = apartments.findIndex((apartment) => apartment.id === id);
-      if (index < 0) {
+      const apartment = apartments.find((item) => item.id === id);
+      if (!apartment) {
         continue;
       }
 
-      const apartment = apartments[index];
       const wasShown = alreadyDiscussed.includes(normalize(apartment.title));
-
       if (wasShown && !askedForPhotos) {
         continue;
       }
 
-      const images = imagesForApartment(
-        apartment.images,
-        apartment.coverIndex,
-      );
+      sent = await this.sendApartmentImagesFor(phone, apartment, sent);
+    }
+  }
 
-      for (const [position, image] of images.entries()) {
-        if (sent >= MAX_IMAGES) {
-          return;
-        }
+  private async sendApartmentImagesFor(
+    phone: string,
+    apartment: ApartmentContext,
+    sent: number,
+  ): Promise<number> {
+    const images = imagesForApartment(apartment.images, apartment.coverIndex);
+    let count = sent;
 
-        try {
-          const caption =
-            position === 0
-              ? `*${apartment.title}*${image.reference ? "\nImagen de referencia" : ""}`
-              : undefined;
-          await this.whatsapp.sendImage(phone, image.source, caption);
-          sent += 1;
-        } catch (error) {
-          this.logger.error(
-            { err: error, phone, apartment: apartment.title },
-            "error enviando imagen del departamento",
-          );
-          break;
-        }
+    for (const [position, image] of images.entries()) {
+      if (count >= MAX_IMAGES) {
+        break;
+      }
+
+      const caption =
+        position === 0
+          ? `*${apartment.title}*${image.reference ? "\nImagen de referencia" : ""}`
+          : undefined;
+
+      try {
+        await this.whatsapp.sendImage(phone, image.source, caption);
+        count += 1;
+      } catch (error) {
+        this.logger.error(
+          { err: error, phone, apartment: apartment.title },
+          "error enviando imagen del departamento",
+        );
+        break;
       }
     }
+
+    return count;
   }
 }
