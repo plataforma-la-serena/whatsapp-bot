@@ -83,7 +83,10 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       try {
         done(null, JSON.parse((body as Buffer).toString("utf8")));
       } catch (error) {
-        done(error as Error, undefined);
+        // Un cuerpo malformado es un error del cliente, no del servidor.
+        const invalid = error as Error & { statusCode?: number };
+        invalid.statusCode = 400;
+        done(invalid, undefined);
       }
     },
   );
