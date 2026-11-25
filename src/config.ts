@@ -51,7 +51,8 @@ function is(name: string, expected: string): boolean {
 function firstDefined(names: string[], fallback: string): string {
   for (const name of names) {
     const value = process.env[name];
-    if (value !== undefined) {
+    // Una variable definida pero vacía equivale a no configurada.
+    if (value !== undefined && value !== "") {
       return value;
     }
   }

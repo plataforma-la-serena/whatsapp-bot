@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["1", "chore/quality-audit"]
+    branches: ["1", "2", "main"]
   pull_request:
 
 jobs:

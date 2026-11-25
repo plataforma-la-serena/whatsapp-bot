@@ -62,10 +62,10 @@ describe("loadConfig", () => {
     expect(isWhatsAppMock(config)).toBe(true);
   });
 
-  it("toma la primera API key definida", () => {
+  it("toma la primera API key definida y no vacía", () => {
     process.env.TRANSCRIPTION_API_KEY = "";
-    process.env.GROQ_API_KEY = "gsk-test";
-    expect(loadConfig().transcriptionApiKey).toBe("");
+    process.env.GROQ_API_KEY = "clave-de-prueba";
+    expect(loadConfig().transcriptionApiKey).toBe("clave-de-prueba");
   });
 
   it("permite deshabilitar la transcripción", () => {
